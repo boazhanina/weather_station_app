@@ -5,22 +5,112 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #1c1e21; text-align: center; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; }
+        .container { max-width: 1100px; margin: auto; margin-right: 180px; }
         .card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 25px; }
-        /* Font color is now set dynamically via inline style */
-        .temp-display { font-size: 5.5rem; font-weight: 800; margin: 10px 0; letter-spacing: -2px; }
+        .temps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+        .temp-box { background: #f8f9fa; border-radius: 12px; padding: 15px; }
+        .sensor-label { font-size: 0.9rem; color: #65676b; margin-bottom: 5px; font-weight: 600; }
+        .temp-display { font-size: 2.8rem; font-weight: 800; margin: 5px 0; letter-spacing: -1px; }
         .info-text { font-size: 1.1rem; color: #65676b; }
         .graph-container { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        
+        /* Control Panel Styles */
+        .control-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 140px;
+            background: #2c3e50;
+            border-radius: 10px;
+            padding: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            color: white;
+            font-size: 0.75rem;
+            text-align: right;
+        }
+        .control-panel h4 {
+            margin: 0 0 10px 0;
+            font-size: 0.85rem;
+            border-bottom: 1px solid #4a6278;
+            padding-bottom: 6px;
+            text-align: center;
+        }
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 6px 0;
+            padding: 4px 0;
+        }
+        .control-label {
+            color: #95a5a6;
+        }
+        .control-value {
+            font-weight: 600;
+            color: #ecf0f1;
+        }
+        .control-section {
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #4a6278;
+        }
+        .control-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .section-title {
+            color: #7f8c8d;
+            font-size: 0.7rem;
+            margin-bottom: 4px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
+    <!-- Control Panel - Side -->
+    <div class="control-panel">
+        <h4>לוח בקרה</h4>
+        
+        <div class="control-section">
+            <div class="section-title">מדידה נוכחית</div>
+            <div class="control-row">
+                <span class="control-value">{{ control_panel.temp_4_current }}°</span>
+                <span class="control-label">חיישן 4</span>
+            </div>
+            <div class="control-row">
+                <span class="control-value">{{ control_panel.cpu_current }}°</span>
+                <span class="control-label">CPU</span>
+            </div>
+        </div>
+        
+        <div class="control-section">
+            <div class="section-title">מקסימום 24 שעות</div>
+            <div class="control-row">
+                <span class="control-value">{{ control_panel.temp_4_max }}°</span>
+                <span class="control-label">חיישן 4</span>
+            </div>
+            <div class="control-row">
+                <span class="control-value">{{ control_panel.cpu_max }}°</span>
+                <span class="control-label">CPU</span>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <h1>תחנת מזג אויר | הגיא 50 | משפחת חנינא</h1>
 
         <div class="card">
             <p class="info-text">מדידה אחרונה</p>
-            <!-- Dynamic color applied here -->
-            <h2 class="temp-display" style="color: {{ color }};">{{ temp }}°C</h2>
+            
+            <div class="temps-grid">
+                {% for i in range(4) %}
+                <div class="temp-box">
+                    <p class="sensor-label">חיישן {{ i }}</p>
+                    <h2 class="temp-display" style="color: {{ colors[i] }};">{{ temps[i] }}°C</h2>
+                </div>
+                {% endfor %}
+            </div>
+            
             <p class="info-text">נמדדה בתאריך: <strong>{{ date }}</strong> בשעה: <strong>{{ time }}</strong></p>
         </div>
 
@@ -31,28 +121,82 @@
     </div>
 
     <script>
-        const historyData = {{ history | tojson }};
-        const labels = historyData.map(item => item.label);
-        const temps = historyData.map(item => item.temp);
+        const labels = {{ labels | tojson }};
+        const history = {{ history | tojson }};
+        const medianHistory = {{ median_history | tojson }};
+        const sensorColors = {{ sensor_colors | tojson }};
 
         const ctx = document.getElementById('weatherChart').getContext('2d');
         new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
-                datasets: [{
-                    label: 'Temperature °C',
-                    data: temps,
-                    borderColor: '{{ color }}', // Graph line matches the temp color!
-                    backgroundColor: 'rgba(0, 0, 0, 0.02)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 0
-                }]
+                datasets: [
+                    {
+                        label: 'חציון (Median)',
+                        data: medianHistory,
+                        borderColor: '#1a1a1a',
+                        backgroundColor: 'transparent',
+                        borderWidth: 4,
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        order: 0
+                    },
+                    {
+                        label: 'חיישן 0',
+                        data: history['0'],
+                        borderColor: sensorColors['0'],
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        order: 1
+                    },
+                    {
+                        label: 'חיישן 1',
+                        data: history['1'],
+                        borderColor: sensorColors['1'],
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        order: 1
+                    },
+                    {
+                        label: 'חיישן 2',
+                        data: history['2'],
+                        borderColor: sensorColors['2'],
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        order: 1
+                    },
+                    {
+                        label: 'חיישן 3',
+                        data: history['3'],
+                        borderColor: sensorColors['3'],
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        order: 1
+                    }
+                ]
             },
             options: {
                 responsive: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
                 scales: {
                     x: { ticks: { autoSkip: true, maxTicksLimit: 12 } },
                     y: { beginAtZero: false }

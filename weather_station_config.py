@@ -1,6 +1,6 @@
 # --- Weather Station Settings ---
-SLEEP_TIME = 300          # 5 Minutes (300 seconds) between readings
-TEMP_AVG_ITERATIONS = 10  
+SLEEP_TIME = 60          # 5 Minutes (300 seconds) between readings
+TEMP_AVG_ITERATIONS = 10
 
 # --- Power Management ---
 LOW_POWER_MODE = False     # Set to False to keep WiFi/HDMI always ON
