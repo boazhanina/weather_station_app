@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Weather Dashboard (24h)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #1c1e21; text-align: center; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; }
+        .card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 25px; }
+        /* Font color is now set dynamically via inline style */
+        .temp-display { font-size: 5.5rem; font-weight: 800; margin: 10px 0; letter-spacing: -2px; }
+        .info-text { font-size: 1.1rem; color: #65676b; }
+        .graph-container { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>תחנת מזג אויר | הגיא 50 | משפחת חנינא</h1>
+
+        <div class="card">
+            <p class="info-text">מדידה אחרונה</p>
+            <!-- Dynamic color applied here -->
+            <h2 class="temp-display" style="color: {{ color }};">{{ temp }}°C</h2>
+            <p class="info-text">נמדדה בתאריך: <strong>{{ date }}</strong> בשעה: <strong>{{ time }}</strong></p>
+        </div>
+
+        <div class="graph-container">
+            <h3 style="margin-top:0;">גרף טמפרטורות ב 24 שעות האחרונות</h3>
+            <canvas id="weatherChart" height="100"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const historyData = {{ history | tojson }};
+        const labels = historyData.map(item => item.label);
+        const temps = historyData.map(item => item.temp);
+
+        const ctx = document.getElementById('weatherChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Temperature °C',
+                    data: temps,
+                    borderColor: '{{ color }}', // Graph line matches the temp color!
+                    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { ticks: { autoSkip: true, maxTicksLimit: 12 } },
+                    y: { beginAtZero: false }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
