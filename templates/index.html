@@ -1,112 +1,131 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Weather Dashboard (24h)</title>
+    <title>Weather Dashboard | Haninas</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #1c1e21; text-align: center; padding: 20px; }
-        .container { max-width: 1100px; margin: auto; margin-right: 180px; }
+        .container { max-width: 900px; margin: auto; }
         .card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 25px; }
-        .temps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
-        .temp-box { background: #f8f9fa; border-radius: 12px; padding: 15px; }
-        .sensor-label { font-size: 0.9rem; color: #65676b; margin-bottom: 5px; font-weight: 600; }
-        .temp-display { font-size: 2.8rem; font-weight: 800; margin: 5px 0; letter-spacing: -1px; }
+        .main-temp { margin: 20px 0; }
+        .main-temp-display { font-size: 5rem; font-weight: 800; margin: 10px 0; letter-spacing: -2px; }
+        .temps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0; }
+        .temp-box { background: #f8f9fa; border-radius: 10px; padding: 10px; }
+        .sensor-label { font-size: 0.75rem; color: #65676b; margin-bottom: 3px; }
+        .temp-display { font-size: 1.4rem; font-weight: 700; margin: 3px 0; }
         .info-text { font-size: 1.1rem; color: #65676b; }
-        .graph-container { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .graph-container { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 25px; }
         
-        /* Control Panel Styles */
-        .control-panel {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 140px;
-            background: #2c3e50;
-            border-radius: 10px;
-            padding: 12px;
+        /* Global Stats Bar Styles */
+        .global-stats-bar {
+            background: linear-gradient(135deg, #1a252f 0%, #2c3e50 100%);
+            border-radius: 12px;
+            padding: 15px 25px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             color: white;
-            font-size: 0.75rem;
-            text-align: right;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
         }
-        .control-panel h4 {
-            margin: 0 0 10px 0;
-            font-size: 0.85rem;
-            border-bottom: 1px solid #4a6278;
-            padding-bottom: 6px;
+        .global-stat-item {
+            text-align: center;
+            padding: 10px 20px;
+        }
+        .global-stat-label {
+            font-size: 0.8rem;
+            color: #95a5a6;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .global-stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+        }
+        .global-stat-max {
+            color: #e74c3c;
+        }
+        .global-stat-min {
+            color: #3498db;
+        }
+        .global-stat-date {
+            font-size: 0.7rem;
+            color: #7f8c8d;
+            margin-top: 3px;
+        }
+        
+        /* System Info Bar Styles */
+        .system-info-bar {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            border-radius: 12px;
+            padding: 15px 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            color: white;
+            margin-bottom: 20px;
+        }
+        .system-info-title {
+            font-size: 0.75rem;
+            color: #95a5a6;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .system-info-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
             text-align: center;
         }
-        .control-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 6px 0;
-            padding: 4px 0;
+        .system-info-item {
+            padding: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
         }
-        .control-label {
-            color: #95a5a6;
+        .system-info-label {
+            font-size: 0.7rem;
+            color: #bdc3c7;
+            margin-bottom: 4px;
         }
-        .control-value {
-            font-weight: 600;
+        .system-info-value {
+            font-size: 1.1rem;
+            font-weight: 700;
             color: #ecf0f1;
         }
-        .control-section {
-            margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #4a6278;
-        }
-        .control-section:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-        .section-title {
-            color: #7f8c8d;
-            font-size: 0.7rem;
-            margin-bottom: 4px;
-            text-align: center;
+        
+        /* Responsive for mobile */
+        @media (max-width: 600px) {
+            .system-info-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .temps-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .main-temp-display {
+                font-size: 3.5rem;
+            }
         }
     </style>
 </head>
 <body>
-    <!-- Control Panel - Side -->
-    <div class="control-panel">
-        <h4>לוח בקרה</h4>
-        
-        <div class="control-section">
-            <div class="section-title">מדידה נוכחית</div>
-            <div class="control-row">
-                <span class="control-value">{{ control_panel.temp_4_current }}°</span>
-                <span class="control-label">חיישן 4</span>
-            </div>
-            <div class="control-row">
-                <span class="control-value">{{ control_panel.cpu_current }}°</span>
-                <span class="control-label">CPU</span>
-            </div>
-        </div>
-        
-        <div class="control-section">
-            <div class="section-title">מקסימום 24 שעות</div>
-            <div class="control-row">
-                <span class="control-value">{{ control_panel.temp_4_max }}°</span>
-                <span class="control-label">חיישן 4</span>
-            </div>
-            <div class="control-row">
-                <span class="control-value">{{ control_panel.cpu_max }}°</span>
-                <span class="control-label">CPU</span>
-            </div>
-        </div>
-    </div>
-
     <div class="container">
         <h1>תחנת מזג אויר | הגיא 50 | משפחת חנינא</h1>
 
         <div class="card">
-            <p class="info-text">מדידה אחרונה</p>
+            <p class="info-text">טמפרטורה נוכחית</p>
             
+            <!-- Main calculated temperature display -->
+            <div class="main-temp">
+                <h2 class="main-temp-display" style="color: {{ calculated_color }};">{{ calculated_temp }}°C</h2>
+            </div>
+            
+            <!-- Individual sensors (smaller) -->
             <div class="temps-grid">
                 {% for i in range(4) %}
                 <div class="temp-box">
                     <p class="sensor-label">חיישן {{ i }}</p>
-                    <h2 class="temp-display" style="color: {{ colors[i] }};">{{ temps[i] }}°C</h2>
+                    <span class="temp-display" style="color: {{ colors[i] }};">{{ temps[i] }}°</span>
                 </div>
                 {% endfor %}
             </div>
@@ -115,77 +134,83 @@
         </div>
 
         <div class="graph-container">
-            <h3 style="margin-top:0;">גרף טמפרטורות ב 24 שעות האחרונות</h3>
+            <h3 style="margin-top:0;">גרף טמפרטורה היום (מחצות)</h3>
+            <p style="font-size: 0.85rem; color: #65676b; margin-top: -10px;">נקודה כל 10 דקות | ממוצע של 2 הערכים האמצעיים</p>
             <canvas id="weatherChart" height="100"></canvas>
+        </div>
+
+        <!-- Global Stats Bar (Max/Min) -->
+        <div class="global-stats-bar">
+            <div class="global-stat-item">
+                <div class="global-stat-label">שיא מקסימום</div>
+                <div class="global-stat-value global-stat-max">{{ global_stats.max_value }}°C</div>
+                <div class="global-stat-date">{{ global_stats.max_date }} {{ global_stats.max_time }}</div>
+            </div>
+            <div class="global-stat-item">
+                <div class="global-stat-label">שיא מינימום</div>
+                <div class="global-stat-value global-stat-min">{{ global_stats.min_value }}°C</div>
+                <div class="global-stat-date">{{ global_stats.min_date }} {{ global_stats.min_time }}</div>
+            </div>
+        </div>
+
+        <!-- System Info Bar -->
+        <div class="system-info-bar">
+            <div class="system-info-title">מידע מערכת</div>
+            <div class="system-info-grid">
+                <div class="system-info-item">
+                    <div class="system-info-label">חיישן 4 (בקופסה)</div>
+                    <div class="system-info-value">{{ control_panel.temp_4_current }}°C</div>
+                </div>
+                <div class="system-info-item">
+                    <div class="system-info-label">טמפרטורת CPU</div>
+                    <div class="system-info-value">{{ control_panel.cpu_current }}°C</div>
+                </div>
+                <div class="system-info-item">
+                    <div class="system-info-label">מקס׳ חיישן 4 היום</div>
+                    <div class="system-info-value">{{ control_panel.temp_4_max }}°C</div>
+                </div>
+                <div class="system-info-item">
+                    <div class="system-info-label">מקס׳ CPU היום</div>
+                    <div class="system-info-value">{{ control_panel.cpu_max }}°C</div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        const labels = {{ labels | tojson }};
-        const history = {{ history | tojson }};
-        const medianHistory = {{ median_history | tojson }};
-        const sensorColors = {{ sensor_colors | tojson }};
+        const graphLabels = {{ graph_labels | tojson }};
+        const graphDataToday = {{ graph_data_today | tojson }};
+        const graphDataYesterday = {{ graph_data_yesterday | tojson }};
 
         const ctx = document.getElementById('weatherChart').getContext('2d');
         new Chart(ctx, {
             type: 'line',
             data: {
-                labels: labels,
+                labels: graphLabels,
                 datasets: [
                     {
-                        label: 'חציון (Median)',
-                        data: medianHistory,
-                        borderColor: '#1a1a1a',
+                        label: 'אתמול',
+                        data: graphDataYesterday,
+                        borderColor: 'rgba(155, 89, 182, 0.35)',
                         backgroundColor: 'transparent',
-                        borderWidth: 4,
+                        borderWidth: 1.5,
+                        borderDash: [4, 4],
                         fill: false,
                         tension: 0.3,
                         pointRadius: 0,
+                        order: 1
+                    },
+                    {
+                        label: 'היום',
+                        data: graphDataToday,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#e74c3c',
                         order: 0
-                    },
-                    {
-                        label: 'חיישן 0',
-                        data: history['0'],
-                        borderColor: sensorColors['0'],
-                        backgroundColor: 'transparent',
-                        borderWidth: 1.5,
-                        fill: false,
-                        tension: 0.3,
-                        pointRadius: 0,
-                        order: 1
-                    },
-                    {
-                        label: 'חיישן 1',
-                        data: history['1'],
-                        borderColor: sensorColors['1'],
-                        backgroundColor: 'transparent',
-                        borderWidth: 1.5,
-                        fill: false,
-                        tension: 0.3,
-                        pointRadius: 0,
-                        order: 1
-                    },
-                    {
-                        label: 'חיישן 2',
-                        data: history['2'],
-                        borderColor: sensorColors['2'],
-                        backgroundColor: 'transparent',
-                        borderWidth: 1.5,
-                        fill: false,
-                        tension: 0.3,
-                        pointRadius: 0,
-                        order: 1
-                    },
-                    {
-                        label: 'חיישן 3',
-                        data: history['3'],
-                        borderColor: sensorColors['3'],
-                        backgroundColor: 'transparent',
-                        borderWidth: 1.5,
-                        fill: false,
-                        tension: 0.3,
-                        pointRadius: 0,
-                        order: 1
                     }
                 ]
             },
@@ -194,12 +219,28 @@
                 plugins: {
                     legend: {
                         display: true,
-                        position: 'top'
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15
+                        }
                     }
                 },
                 scales: {
-                    x: { ticks: { autoSkip: true, maxTicksLimit: 12 } },
-                    y: { beginAtZero: false }
+                    x: { 
+                        title: {
+                            display: true,
+                            text: 'שעה'
+                        },
+                        ticks: { autoSkip: true, maxTicksLimit: 24 } 
+                    },
+                    y: { 
+                        title: {
+                            display: true,
+                            text: 'טמפרטורה (°C)'
+                        },
+                        beginAtZero: false 
+                    }
                 }
             }
         });

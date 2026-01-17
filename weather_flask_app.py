@@ -1,22 +1,13 @@
 from flask import Flask, render_template
 import sqlite3
 import logging
-import os
-import statistics
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
 # --- CONFIGURATION ---
 DB_NAME = "weather_data_10.db"
 LOG_FILE = "app_debug.log"
-
-# Sensor colors for the graph (distinct colors for each sensor)
-SENSOR_COLORS = {
-    0: "#e74c3c",  # Red
-    1: "#3498db",  # Blue
-    2: "#2ecc71",  # Green
-    3: "#9b59b6",  # Purple
-}
 
 logging.basicConfig(
     filename=LOG_FILE,
@@ -26,41 +17,77 @@ logging.basicConfig(
 )
 
 def get_temp_color(temp_val):
-    """Returns a color hex code based on temperature"""
+    """Returns a color hex code based on temperature with detailed gradient"""
     try:
         t = float(temp_val)
-        if t < 18.0:
-            return "#007bff"  # Cold Blue
+        if t < 0.0:
+            return "#e1f5fe"  # Ice White-Blue (freezing)
+        elif t < 5.0:
+            return "#7c4dff"  # Purple (very cold)
+        elif t < 10.0:
+            return "#00bcd4"  # Cyan (cold)
+        elif t < 18.0:
+            return "#2196f3"  # Blue (cool)
         elif t <= 26.0:
-            return "#ff9800"  # Mild Orange
+            return "#ff9800"  # Orange (mild/pleasant)
+        elif t <= 32.0:
+            return "#f44336"  # Red (hot)
+        elif t <= 40.0:
+            return "#b71c1c"  # Dark Red (very hot)
         else:
-            return "#f44336"  # Hot Red
+            return "#880e4f"  # Deep Crimson (extreme heat)
     except:
         return "#1c1e21"      # Default Dark
 
+def calculate_minute_value(temp_0, temp_1, temp_2, temp_3):
+    """
+    Calculate per-minute value: average of the 2 middle values from 4 sensors.
+    Used only for calculating current display temperature.
+    """
+    temps = [t for t in [temp_0, temp_1, temp_2, temp_3] if t is not None]
+    if len(temps) < 2:
+        return None
+    
+    temps_sorted = sorted(temps)
+    if len(temps_sorted) == 2:
+        middle_two = temps_sorted
+    elif len(temps_sorted) == 3:
+        return temps_sorted[1]  # Just the middle one
+    else:  # 4 values
+        middle_two = temps_sorted[1:3]  # The 2 middle values
+    
+    return sum(middle_two) / len(middle_two)
+
 def get_weather_data():
     conn = None
+    today = datetime.now().strftime("%Y-%m-%d")
+    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    
     results = {
         "current": {
             "temps": [None, None, None, None],  # Temps for sensors 0-3
             "colors": ["#1c1e21", "#1c1e21", "#1c1e21", "#1c1e21"],
             "date": "N/A",
-            "time": "N/A"
+            "time": "N/A",
+            "calculated_temp": "N/A",
+            "calculated_color": "#1c1e21"
         },
-        "history": {
-            0: [],
-            1: [],
-            2: [],
-            3: []
-        },
-        "median_history": [],
-        "labels": [],
-        "sensor_colors": SENSOR_COLORS,
+        "graph_data_today": [],  # Today's 10-minute averages (from weather_graph_points)
+        "graph_data_yesterday": [],  # Yesterday's 10-minute averages
+        "graph_labels": [],  # Time labels for graph
         "control_panel": {
             "temp_4_current": "N/A",
             "cpu_current": "N/A",
             "temp_4_max": "N/A",
             "cpu_max": "N/A"
+        },
+        "global_stats": {
+            "max_value": "N/A",
+            "max_date": "N/A",
+            "max_time": "N/A",
+            "min_value": "N/A",
+            "min_date": "N/A",
+            "min_time": "N/A"
         }
     }
     
@@ -69,18 +96,15 @@ def get_weather_data():
         conn.row_factory = sqlite3.Row 
         cursor = conn.cursor()
         
-        # Fetch last 288 measurements (24 hours at 5-min intervals)
+        # 1. Get current readings from weather_log (latest entry)
         cursor.execute("""
             SELECT temp_0, temp_1, temp_2, temp_3, temp_4, cpu_temp, log_date, log_time 
             FROM weather_log 
-            ORDER BY id DESC 
-            LIMIT 288
+            ORDER BY id DESC LIMIT 1
         """)
-        rows = cursor.fetchall()
+        newest = cursor.fetchone()
         
-        if rows:
-            # Get current (newest) readings
-            newest = rows[0]
+        if newest:
             results["current"]["date"] = newest['log_date']
             results["current"]["time"] = newest['log_time']
             
@@ -92,39 +116,80 @@ def get_weather_data():
                 else:
                     results["current"]["temps"][i] = "N/A"
             
+            # Calculate current display temperature (2 middle values average)
+            current_calc = calculate_minute_value(
+                newest['temp_0'], newest['temp_1'], newest['temp_2'], newest['temp_3']
+            )
+            if current_calc is not None:
+                results["current"]["calculated_temp"] = "{:.2f}".format(current_calc)
+                results["current"]["calculated_color"] = get_temp_color(current_calc)
+            
             # Control panel: current temp_4 and CPU
             if newest['temp_4'] is not None:
                 results["control_panel"]["temp_4_current"] = "{:.1f}".format(newest['temp_4'])
             if newest['cpu_temp'] is not None:
                 results["control_panel"]["cpu_current"] = "{:.1f}".format(newest['cpu_temp'])
-            
-            # Control panel: max temp_4 and CPU for last 24 hours
-            temp_4_values = [r['temp_4'] for r in rows if r['temp_4'] is not None]
-            cpu_values = [r['cpu_temp'] for r in rows if r['cpu_temp'] is not None]
-            
-            if temp_4_values:
-                results["control_panel"]["temp_4_max"] = "{:.1f}".format(max(temp_4_values))
-            if cpu_values:
-                results["control_panel"]["cpu_max"] = "{:.1f}".format(max(cpu_values))
-            
-            # Build history for each sensor (reversed to chronological order)
-            for r in reversed(rows):
-                results["labels"].append(r['log_time'])
-                row_temps = []
-                for i in range(4):
-                    temp_val = r[f'temp_{i}']
-                    results["history"][i].append(
-                        round(temp_val, 2) if temp_val is not None else None
-                    )
-                    if temp_val is not None:
-                        row_temps.append(temp_val)
-                
-                # Calculate median of the 4 sensors for this measurement point
-                if row_temps:
-                    median_val = statistics.median(row_temps)
-                    results["median_history"].append(round(median_val, 2))
-                else:
-                    results["median_history"].append(None)
+        
+        # 2. Get control panel max values for today from weather_log
+        cursor.execute("""
+            SELECT MAX(temp_4) as max_temp_4, MAX(cpu_temp) as max_cpu 
+            FROM weather_log 
+            WHERE log_date = ?
+        """, (today,))
+        max_row = cursor.fetchone()
+        if max_row:
+            if max_row['max_temp_4'] is not None:
+                results["control_panel"]["temp_4_max"] = "{:.1f}".format(max_row['max_temp_4'])
+            if max_row['max_cpu'] is not None:
+                results["control_panel"]["cpu_max"] = "{:.1f}".format(max_row['max_cpu'])
+        
+        # 3. Get graph data from weather_graph_points (pre-calculated 10-min averages)
+        # Today's data
+        cursor.execute("""
+            SELECT log_time, calculated_temp 
+            FROM weather_graph_points 
+            WHERE log_date = ?
+            ORDER BY log_time ASC
+        """, (today,))
+        today_points = cursor.fetchall()
+        
+        # Yesterday's data (for comparison)
+        cursor.execute("""
+            SELECT log_time, calculated_temp 
+            FROM weather_graph_points 
+            WHERE log_date = ?
+            ORDER BY log_time ASC
+        """, (yesterday,))
+        yesterday_points = cursor.fetchall()
+        
+        # Create lookup for yesterday's data
+        yesterday_lookup = {row['log_time']: row['calculated_temp'] for row in yesterday_points}
+        
+        # Build graph data aligned by time slots
+        for point in today_points:
+            time_label = point['log_time']
+            results["graph_labels"].append(time_label)
+            results["graph_data_today"].append(point['calculated_temp'])
+            # Get yesterday's value at same time, or None
+            results["graph_data_yesterday"].append(yesterday_lookup.get(time_label))
+        
+        # 4. Get global stats from weather_stats table
+        cursor.execute("""
+            SELECT stat_name, stat_value, log_date, log_time 
+            FROM weather_stats 
+            WHERE stat_name IN ('global_max', 'global_min')
+        """)
+        stats_rows = cursor.fetchall()
+        
+        for stat in stats_rows:
+            if stat['stat_name'] == 'global_max' and stat['stat_value'] is not None:
+                results["global_stats"]["max_value"] = "{:.1f}".format(stat['stat_value'])
+                results["global_stats"]["max_date"] = stat['log_date'] or "N/A"
+                results["global_stats"]["max_time"] = stat['log_time'] or "N/A"
+            elif stat['stat_name'] == 'global_min' and stat['stat_value'] is not None:
+                results["global_stats"]["min_value"] = "{:.1f}".format(stat['stat_value'])
+                results["global_stats"]["min_date"] = stat['log_date'] or "N/A"
+                results["global_stats"]["min_time"] = stat['log_time'] or "N/A"
             
     except Exception as e:
         logging.error(f"DATABASE ERROR: {str(e)}")
@@ -145,13 +210,15 @@ def index():
         colors=data["current"]["colors"],
         date=data["current"]["date"],
         time=data["current"]["time"],
-        labels=data["labels"],
-        history=data["history"],
-        median_history=data["median_history"],
-        sensor_colors=data["sensor_colors"],
-        control_panel=data["control_panel"]
+        calculated_temp=data["current"]["calculated_temp"],
+        calculated_color=data["current"]["calculated_color"],
+        graph_data_today=data["graph_data_today"],
+        graph_data_yesterday=data["graph_data_yesterday"],
+        graph_labels=data["graph_labels"],
+        control_panel=data["control_panel"],
+        global_stats=data["global_stats"]
     )
 
 if __name__ == '__main__':
-    logging.info("System Startup: weather_flask_app.py with 4 Sensors")
+    logging.info("System Startup: weather_flask_app.py - Simplified with pre-calculated data")
     app.run(host='0.0.0.0', port=5000, debug=True)

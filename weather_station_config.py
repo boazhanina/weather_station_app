@@ -1,5 +1,5 @@
 # --- Weather Station Settings ---
-SLEEP_TIME = 60          # 5 Minutes (300 seconds) between readings
+SLEEP_TIME = 60          # 1 minute (60 seconds) between readings
 TEMP_AVG_ITERATIONS = 10
 
 # --- Power Management ---
