@@ -50,7 +50,7 @@ def dump_graph_points(cursor):
     print("\n" + "=" * 70)
     print("TABLE: weather_graph_points (10-Minute Averages)")
     print("=" * 70)
-    
+
     if not rows:
         print("  (empty)")
     else:

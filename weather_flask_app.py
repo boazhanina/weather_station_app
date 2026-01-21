@@ -162,16 +162,42 @@ def get_weather_data():
         """, (yesterday,))
         yesterday_points = cursor.fetchall()
         
-        # Create lookup for yesterday's data
-        yesterday_lookup = {row['log_time']: row['calculated_temp'] for row in yesterday_points}
+        # Create lookup dictionaries for fast access by time (HH:MM format)
+        # Round times to nearest 10-minute boundary to handle any misaligned data
+        today_lookup = {}
+        for row in today_points:
+            time_str = row['log_time'][:5] if len(row['log_time']) > 5 else row['log_time']
+            # Round to nearest 10-minute boundary: 14:23 -> 14:20, 18:07 -> 18:00
+            try:
+                hour = int(time_str[:2])
+                minute = int(time_str[3:5])
+                rounded_minute = (minute // 10) * 10
+                time_key = f"{hour:02d}:{rounded_minute:02d}"
+            except:
+                time_key = time_str
+            today_lookup[time_key] = row['calculated_temp']
         
-        # Build graph data aligned by time slots
-        for point in today_points:
-            time_label = point['log_time']
-            results["graph_labels"].append(time_label)
-            results["graph_data_today"].append(point['calculated_temp'])
-            # Get yesterday's value at same time, or None
-            results["graph_data_yesterday"].append(yesterday_lookup.get(time_label))
+        yesterday_lookup = {}
+        for row in yesterday_points:
+            time_str = row['log_time'][:5] if len(row['log_time']) > 5 else row['log_time']
+            try:
+                hour = int(time_str[:2])
+                minute = int(time_str[3:5])
+                rounded_minute = (minute // 10) * 10
+                time_key = f"{hour:02d}:{rounded_minute:02d}"
+            except:
+                time_key = time_str
+            yesterday_lookup[time_key] = row['calculated_temp']
+        
+        # Build FIXED 24-hour graph with all 144 time slots (every 10 minutes)
+        # This ensures the graph scale stays constant throughout the day
+        for hour in range(24):
+            for minute in range(0, 60, 10):
+                time_label = f"{hour:02d}:{minute:02d}"
+                results["graph_labels"].append(time_label)
+                # Get data if available, otherwise None (will show as gap in graph)
+                results["graph_data_today"].append(today_lookup.get(time_label))
+                results["graph_data_yesterday"].append(yesterday_lookup.get(time_label))
         
         # 4. Get global stats from weather_stats table
         cursor.execute("""

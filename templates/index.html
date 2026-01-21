@@ -134,8 +134,8 @@
         </div>
 
         <div class="graph-container">
-            <h3 style="margin-top:0;">גרף טמפרטורה היום (מחצות)</h3>
-            <p style="font-size: 0.85rem; color: #65676b; margin-top: -10px;">נקודה כל 10 דקות | ממוצע של 2 הערכים האמצעיים</p>
+            <h3 style="margin-top:0;">גרף טמפרטורה - היום מול אתמול</h3>
+            <p style="font-size: 0.85rem; color: #65676b; margin-top: -10px;">נקודה כל 10 דקות | קו אדום = היום | קו אפור מקווקו = אתמול</p>
             <canvas id="weatherChart" height="100"></canvas>
         </div>
 
@@ -191,13 +191,14 @@
                     {
                         label: 'אתמול',
                         data: graphDataYesterday,
-                        borderColor: 'rgba(155, 89, 182, 0.35)',
-                        backgroundColor: 'transparent',
-                        borderWidth: 1.5,
-                        borderDash: [4, 4],
+                        borderColor: 'rgba(149, 165, 166, 0.6)',
+                        backgroundColor: 'rgba(149, 165, 166, 0.05)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
                         fill: false,
                         tension: 0.3,
                         pointRadius: 0,
+                        spanGaps: true,
                         order: 1
                     },
                     {
@@ -208,8 +209,9 @@
                         borderWidth: 3,
                         fill: true,
                         tension: 0.3,
-                        pointRadius: 4,
+                        pointRadius: 3,
                         pointBackgroundColor: '#e74c3c',
+                        spanGaps: true,
                         order: 0
                     }
                 ]
@@ -232,14 +234,24 @@
                             display: true,
                             text: 'שעה'
                         },
-                        ticks: { autoSkip: true, maxTicksLimit: 24 } 
+                        ticks: { 
+                            autoSkip: true, 
+                            maxTicksLimit: 12,
+                            maxRotation: 0
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
                     },
                     y: { 
                         title: {
                             display: true,
                             text: 'טמפרטורה (°C)'
                         },
-                        beginAtZero: false 
+                        beginAtZero: false,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
                     }
                 }
             }

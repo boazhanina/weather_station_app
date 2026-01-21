@@ -41,14 +41,20 @@ def process_10_minute_bucket(buffer, curr_date, curr_time):
     Args:
         buffer: List of minute values
         curr_date: Current date string
-        curr_time: Current time string (will use HH:MM format)
+        curr_time: Current time string (HH:MM:SS format)
     """
     valid_values = [v for v in buffer if v is not None]
     
     if valid_values:
         # Calculate average of the 10-minute bucket
         avg_value = round(sum(valid_values) / len(valid_values), 2)
-        time_label = curr_time[:5]  # HH:MM format
+        
+        # Round time DOWN to nearest 10-minute boundary for graph alignment
+        # e.g., 14:23 -> 14:20, 18:07 -> 18:00, 19:59 -> 19:50
+        hour = int(curr_time[:2])
+        minute = int(curr_time[3:5])
+        rounded_minute = (minute // 10) * 10  # Round down to nearest 10
+        time_label = f"{hour:02d}:{rounded_minute:02d}"
         
         # Save to graph points table
         sql.save_graph_point(curr_date, time_label, avg_value)
