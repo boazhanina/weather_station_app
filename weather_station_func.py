@@ -1,10 +1,16 @@
 import os
 import time
-import statistics  # Library for median calculation
-import weather_station_config as config
+import logging
 from temp_sen_char.sensor_map import SENSOR_MAP
 
 BASE_DIR = '/sys/bus/w1/devices/'
+
+# Configure logging for sensor errors
+logging.basicConfig(
+    filename='sensor_errors.log',
+    level=logging.WARNING,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 def set_power_state(on):
     """Turns WiFi and HDMI On (True) or Off (False) to save power."""
@@ -21,18 +27,18 @@ def set_power_state(on):
 
 def get_ambient_temp_single_sensor(sensor_index):
     """
-    Reads the DS18B20 sensor by index and returns MEDIAN temperature to filter noise.
+    Reads the DS18B20 sensor by index and returns a single temperature measurement.
     
     Args:
         sensor_index: Index of the sensor (0-4) as defined in SENSOR_MAP
         
     Returns:
-        Median temperature in Celsius, or None on failure
+        Temperature in Celsius, or None on failure (error is logged)
     """
-    readings = []
     try:
         # Get the serial number for this sensor index
         if sensor_index not in SENSOR_MAP:
+            logging.warning(f"Sensor {sensor_index}: Invalid sensor index (not in SENSOR_MAP)")
             return None
         
         sensor_serial = SENSOR_MAP[sensor_index]
@@ -40,19 +46,39 @@ def get_ambient_temp_single_sensor(sensor_index):
         
         # Check if the sensor device exists
         if not os.path.exists(device_file):
+            logging.warning(f"Sensor {sensor_index} ({sensor_serial}): Device file not found")
             return None
 
-        for _ in range(config.TEMP_AVG_ITERATIONS):
-            with open(device_file, 'r') as f:
-                lines = f.readlines()
-            if 'YES' in lines[0]:
-                temp_string = lines[1].split('t=')[1]
-                readings.append(float(temp_string) / 1000.0)
-            time.sleep(0.1)
+        # Single read (no loop needed)
+        with open(device_file, 'r') as f:
+            lines = f.readlines()
         
-        # Calculate median instead of average
-        return statistics.median(readings) if readings else None
-    except Exception:
+        # Check CRC result
+        if len(lines) < 2:
+            logging.warning(f"Sensor {sensor_index} ({sensor_serial}): Incomplete response")
+            return None
+            
+        if 'YES' not in lines[0]:
+            logging.warning(f"Sensor {sensor_index} ({sensor_serial}): CRC check failed")
+            return None
+        
+        # Extract temperature
+        try:
+            temp_string = lines[1].split('t=')[1]
+            temp_celsius = float(temp_string) / 1000.0
+            
+            # Sanity check for valid temperature range
+            if temp_celsius < -55 or temp_celsius > 125:
+                logging.warning(f"Sensor {sensor_index} ({sensor_serial}): Temperature out of range ({temp_celsius}°C)")
+                return None
+            
+            return temp_celsius
+        except (IndexError, ValueError) as e:
+            logging.warning(f"Sensor {sensor_index} ({sensor_serial}): Failed to parse temperature - {e}")
+            return None
+            
+    except Exception as e:
+        logging.error(f"Sensor {sensor_index}: Unexpected error - {e}")
         return None
 
 def get_ambient_temp():

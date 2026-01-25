@@ -1,6 +1,6 @@
 # --- Weather Station Settings ---
 SLEEP_TIME = 60          # 1 minute (60 seconds) between readings
-TEMP_AVG_ITERATIONS = 10
+TEMP_AVG_ITERATIONS = 1  # Single measurement per sensor (no averaging)
 
 # --- Power Management ---
 LOW_POWER_MODE = False     # Set to False to keep WiFi/HDMI always ON

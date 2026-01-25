@@ -1,7 +1,15 @@
 import time
+import logging
 import weather_station_config as config
 import weather_station_func as func
 import weather_station_sql as sql
+
+# Configure logging for main process
+logging.basicConfig(
+    filename='sensor_errors.log',
+    level=logging.WARNING,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 # Buffer to store minute readings for 10-minute calculation
 minute_buffer = []
@@ -44,6 +52,12 @@ def process_10_minute_bucket(buffer, curr_date, curr_time):
         curr_time: Current time string (HH:MM:SS format)
     """
     valid_values = [v for v in buffer if v is not None]
+    missing_count = len(buffer) - len(valid_values)
+    
+    # Log if some minute values were missing
+    if missing_count > 0:
+        logging.warning(f"{curr_date} {curr_time} - 10-minute bucket had {missing_count}/10 missing minute values")
+        print(f"  ⚠ 10-min bucket: {missing_count}/10 minute values were invalid (using {len(valid_values)} valid)")
     
     if valid_values:
         # Calculate average of the 10-minute bucket
@@ -62,10 +76,12 @@ def process_10_minute_bucket(buffer, curr_date, curr_time):
         # Update global stats (checks if this beats current max/min)
         sql.update_global_stats(avg_value, curr_date, time_label)
         
-        print(f"  >>> 10-min graph point saved: {avg_value}°C at {time_label}")
+        print(f"  >>> 10-min graph point saved: {avg_value}°C at {time_label} (from {len(valid_values)} readings)")
         return avg_value
-    
-    return None
+    else:
+        logging.error(f"{curr_date} {curr_time} - 10-minute bucket had NO valid values, graph point skipped")
+        print(f"  ✗ 10-min graph point SKIPPED: no valid minute values")
+        return None
 
 def main():
     global minute_buffer
@@ -93,17 +109,29 @@ def main():
             curr_date = time.strftime("%Y-%m-%d")
             curr_time = time.strftime("%H:%M:%S")
 
-            # Check if we got at least one valid reading from sensors 0-3
+            # Check which sensors returned invalid readings and log them
+            invalid_sensors = [i for i in range(4) if temperatures.get(i) is None]
             valid_temps = [temperatures.get(i) for i in range(4) if temperatures.get(i) is not None]
             
+            # Log invalid sensor readings (summary at main level)
+            if invalid_sensors:
+                logging.warning(f"{curr_date} {curr_time} - Invalid readings from sensors: {invalid_sensors} ({len(invalid_sensors)}/4 failed)")
+                print(f"  ⚠ Invalid readings from sensors: {invalid_sensors}")
+            
             if valid_temps:
-                # 2. SAVE RAW READING TO DATABASE
+                # 2. SAVE RAW READING TO DATABASE (including None values)
                 sql.save_reading(curr_date, curr_time, temperatures, cpu_temp)
                 
                 # 3. CALCULATE PER-MINUTE VALUE (average of 2 middle sensors)
                 minute_value = calculate_minute_value(temperatures)
-                minute_buffer.append(minute_value)
-                reading_count += 1
+                
+                if minute_value is not None:
+                    minute_buffer.append(minute_value)
+                    reading_count += 1
+                else:
+                    # Not enough valid readings to calculate minute value
+                    logging.warning(f"{curr_date} {curr_time} - Could not calculate minute value (not enough valid sensors)")
+                    print(f"  ⚠ Skipping minute value: not enough valid sensors")
                 
                 # 4. EVERY 10 READINGS, CREATE A GRAPH POINT
                 if reading_count >= 10:
