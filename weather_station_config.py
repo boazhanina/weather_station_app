@@ -7,7 +7,9 @@ LOW_POWER_MODE = False     # Set to False to keep WiFi/HDMI always ON
 SYNC_WINDOW = 30          # Seconds to stay awake for Laptop/Samba sync
 
 # --- Database Settings ---
-DB_NAME = "weather_data_10.db"
+import os
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = os.path.join(PROJECT_DIR, "weather_data_10.db")
 
 # --- Color Scale Settings ---
 MIN_TEMP = 0   

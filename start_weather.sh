@@ -2,7 +2,7 @@
 # Clean startup script for weather station and Flask dashboard
 # Updated to support Cloudflare Tunnel for external access
 
-PROJECT_DIR="/home/hanina/weather_app_latest"
+PROJECT_DIR="/home/hanina/weather_app"
 DB_PATH="$PROJECT_DIR/weather_data_10.db"
 FLASK_PORT=5000
 CLOUDFLARE_URL="https://haninas.com"

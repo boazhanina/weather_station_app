@@ -1,12 +1,14 @@
 import time
 import logging
+import os
 import weather_station_config as config
 import weather_station_func as func
 import weather_station_sql as sql
 
-# Configure logging for main process
+# Configure logging for main process with absolute path
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 logging.basicConfig(
-    filename='sensor_errors.log',
+    filename=os.path.join(PROJECT_DIR, 'sensor_errors.log'),
     level=logging.WARNING,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )

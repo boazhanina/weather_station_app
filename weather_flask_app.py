@@ -1,13 +1,15 @@
 from flask import Flask, render_template
 import sqlite3
 import logging
+import os
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
-# --- CONFIGURATION ---
-DB_NAME = "weather_data_10.db"
-LOG_FILE = "app_debug.log"
+# --- CONFIGURATION WITH ABSOLUTE PATHS ---
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = os.path.join(PROJECT_DIR, "weather_data_10.db")
+LOG_FILE = os.path.join(PROJECT_DIR, "app_debug.log")
 
 logging.basicConfig(
     filename=LOG_FILE,
